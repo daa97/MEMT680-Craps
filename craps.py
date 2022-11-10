@@ -1,5 +1,8 @@
-from interface import App
+from interface import App, EntryBox
 from random import randint
+
+def remove(string, chars):
+    return "".join([c for c in filter(lambda x: not x in chars, string)])
 
 def catch(err_func):
     def inner_func(err_func, *args, **kwargs):
@@ -28,12 +31,16 @@ class Table(Dice):
 class Player(Table):
     def __init__(self):
         super().__init__()
-        
+        box = EntryBox("Please enter the balance you want to gamble:", check_func=lambda s: remove(s,"$,").isnumeric())
+        balance = int(remove(box.userval(),"$,"))
+        print(balance)
 class Bets(Player):
     def __init__(self):
         super().__init__()
 
 
-
 def chance(roll):                   # returns the probability of a given roll (2-12) occuring
     return (6 - abs(roll-7))/6**2   # rolls have 1/36, 2/36, 3/36 chance, with peak of 6/36 for a seven
+
+
+Player()
