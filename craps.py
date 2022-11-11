@@ -1,8 +1,8 @@
-from interface import App, EntryBox
-from numpy.random import randint, multinomial
+from numpy.random import randint
 
-def remove(string, chars):
-    return "".join([c for c in filter(lambda x: not x in chars, string)])
+from interface import *
+
+
 
 def catch(err_func):
     def inner_func(err_func, *args, **kwargs):
@@ -58,8 +58,10 @@ class Player(Table):
     "Represents a single player at the table"
     def __init__(self):
         super().__init__()
-        box = EntryBox("Please enter the balance you want to gamble:", check_func=lambda s: remove(s,"$,").isnumeric())
-        self.balance = int(remove(box.userval(),"$,"))
+        
+        self.name = EntryBox("Please enter your name:").userval()
+        balance_box = EntryBox("Please enter the balance you want to gamble:", check_func=lambda s: remove(s,"$,0_ ").isnumeric())
+        self.balance = int(remove(balance_box.userval(),"$,"))
         print(self.balance)
 
 class Bets(Player):
@@ -70,8 +72,16 @@ class Bets(Player):
         self.no_pass_bet = 0
         self.odds_bet = 0
         self.max_odds = 0
-    def pass_line(self, bet):
+    def pass_line(self):
         if not self.point:
-            bet = self.ingest_bet()
+            self.pass_bet = self.ingest_bet()
+
+
+    def do_not_pass(self):
+        if not self.point:
+            self.no_pass_bet = self.ingest_bet()
+    
+    def ingest_bet(self):
+        pass
 
 App(Bets())
