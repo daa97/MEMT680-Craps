@@ -8,70 +8,47 @@ def remove(string, chars):
 
 
 class App(tk.Tk):
-    def __init__(self, bets):
+    def __init__(self):
         super().__init__()
-        self.bets = bets                    # associated player bets
-        self.title(f"{self.bets.name} plays craps")
-        self.balancelabel = ttk.Label(self,text=f"Balance: ${self.bets.balance}")
-        self.betlabel = ttk.Label(self,text="Current Bet: $0")
+        self.labelbox = ttk.Frame()
+        self.labels = dict()
+        self.labels['title'] =  ttk.Label(self.labelbox,text=f"Craps", font=("bold 16"))
+        self.labels['balance'] = ttk.Label(self.labelbox,text=f"Balance: $0")
+        self.labels['bet'] = ttk.Label(self.labelbox,text="Current Bet: $0")
+        self.labels['point'] = ttk.Label(self.labelbox, text="Point: None")
+        
         self.betvar = tk.StringVar(value="0")
         self.betbox = ttk.Entry(self,textvariable=self.betvar)
 
         # create frame containing images of two dice
         self.dice = ttk.Frame(self)
         self.die_images = [tk.PhotoImage(file=f"resources\\die_{i+1}.ppm") for i in range(6)]
-        self.die1 = ttk.Label(self.dice, image=self.die_images[0])
-        self.die2 = ttk.Label(self.dice, image=self.die_images[0])
-        self.die1.grid(row=0, column=0)
-        self.die2.grid(row=0, column=1)
+        self.die = [ttk.Label(self.dice, image=self.die_images[0]), ttk.Label(self.dice, image=self.die_images[0])] 
+        self.die[0].grid(row=0, column=0)
+        self.die[1].grid(row=0, column=1)
 
-        self.pass_button = ttk.Button(self, text="Pass", command=lambda: self.ingest_bet( pass_=True))
-        self.no_pass_button = ttk.Button(self, text="Do Not Pass", command=lambda: self.ingest_bet( pass_=False))
-        self.roll_button = ttk.Button(self, text="Start Roll", command=self.shoot)
+        self.pass_button = ttk.Button(self, text="Pass")
+        self.no_pass_button = ttk.Button(self, text="Do Not Pass")
+        self.roll_button = ttk.Button(self, text="Start Roll")
         
-
         # place all widgets in appropriate locations within window
-        self.dice.grid(row=0,column=0, columnspan=2)
-        self.balancelabel.grid(row=1, column=0)
-        self.betlabel.grid(row=1, column=1)
-        self.betbox.grid(row=2,column=1)
-        self.pass_button.grid(row=3, column=0)
-        self.no_pass_button.grid(row=3, column=1)
-        self.roll_button.grid()
+        self.labels['title'].grid(row=0,column=0)
+        self.dice.grid(row=1,column=0, columnspan=2)
         
-        self.mainloop()
-
-    def ingest_bet(self, pass_):
-        bet = remove(self.betvar.get(), "$,_ ")
-        if not bet.isnumeric():                     # check if bet contains non-numeric symbols
-            if remove(bet,".").isnumeric():         # check if bet is number with decimal
-                messagebox.showerror(message="Bet must be whole dollar amount!")
-            elif remove(bet,"-").isnumeric():       # check if bet is a negative number
-                messagebox.showerror(message="Bet must be positive!")
-            else:                                   # if bet is not a number at all
-                messagebox.showerror(message="Bet must be a number!")
-        elif int(bet)<1:                            # check if bet is zero
-            messagebox.showerror(message="Bet must be greater than zero!")
-        elif int(bet)>self.bets.balance:            # check if bet is greater than player balance
-            messagebox.showerror(message=f'''You don't have enough money for that bet!
-                                            \nYour balance: ${self.bets.balance}
-                                            \nYou tried to bet: ${bet}
-                                            \nWin a few more rounds first...''')
-
-        else:                                       # if bet is valid
-            if pass_:                               # bet pass line
-                self.bets.pass_line(int(bet))
-            else:                                   # bet do not pass line
-                self.bets.do_not_pass(int(bet))
-            self.shoot()
+        self.labels["balance"].grid(row=3, column=0)
+        self.labels["bet"].grid(row=3, column=1)
+        self.labelbox.grid(row=0,column=0)
+        self.betbox.grid(row=4,column=1)
+        self.pass_button.grid(row=5, column=0)
+        self.no_pass_button.grid(row=5, column=1)
+        self.roll_button.grid(row=6, column=0)
         
 
-    def shoot(self):
-        a = self.bets.shooter()
-        rolls = self.bets.roll()
-        print(rolls)
-        self.die1['image'] = self.die_images[rolls[0] - 1]
-        self.die2['image'] = self.die_images[rolls[1] - 1]
+    def update_view(self, roll, balance, point):
+        self.die[0]['image'] = self.die_images[roll[0] - 1]
+        self.die[1]['image'] = self.die_images[roll[1] - 1]
+        self.labels['balance'].configure(text=f"Balance: ${balance}")
+        self.labels
 
 
 class EntryBox(tk.Tk):

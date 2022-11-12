@@ -58,30 +58,63 @@ class Player(Table):
     "Represents a single player at the table"
     def __init__(self):
         super().__init__()
-        
         self.name = EntryBox("Please enter your name:").userval()
         balance_box = EntryBox("Please enter the balance you want to gamble:", check_func=lambda s: remove(s,"$,0_ ").isnumeric())
         self.balance = int(remove(balance_box.userval(),"$,"))
         print(self.balance)
 
-class Bets(Player):
+class Bets(Player, App):
     "Represents bets belonging to a particular player"
     def __init__(self):
-        super().__init__()
+        #super().__init__()
+        Player.__init__(self)
+        App.__init__(self)
+        self.title(f"{self.name} plays craps")
         self.pass_bet = 0
         self.no_pass_bet = 0
         self.odds_bet = 0
         self.max_odds = 0
+        self.payout = 0
+        self.mainloop()
+
     def pass_line(self):
         if not self.point:
-            self.pass_bet = self.ingest_bet()
-
-
+            userval = self.ingest_bet()
+            if userval is not None:
+                self.pass_bet = userval
+                self.shooter()
+            
     def do_not_pass(self):
         if not self.point:
-            self.no_pass_bet = self.ingest_bet()
-    
-    def ingest_bet(self):
-        pass
+            userval = self.ingest_bet()
+            if userval is not None:
+                self.no_pass_bet = userval
+                self.shooter()
 
-App(Bets())
+    def shooter(self):
+        if max(self.pass_bet, self.no_pass_bet) != 0:
+            val = sum(self.roll())
+            if val==7 or val==11:
+                pass
+
+    def ingest_bet(self):
+        bet = remove(self.betvar.get(), "$,_ ")
+        if not bet.isnumeric():                     # check if bet contains non-numeric symbols
+            if remove(bet,".").isnumeric():         # check if bet is number with decimal
+                messagebox.showerror(message="Bet must be whole dollar amount!")
+            elif remove(bet,"-").isnumeric():       # check if bet contains a minus sign
+                messagebox.showerror(message="Bet must be positive!")
+            else:                                   # if bet is not a number at all
+                messagebox.showerror(message="Bet must be a number!")
+        elif int(bet)<1:                            # check if bet is zero
+            messagebox.showerror(message="Bet must be greater than zero!")
+        elif int(bet)>self.balance:                 # check if bet is greater than player balance
+            messagebox.showerror(message=f'''You don't have enough money for that bet!
+                                            \nYour balance: ${self.bets.balance}
+                                            \nYou tried to bet: ${bet}
+                                            \nWin a few more rounds first...''')
+
+        else:                                       # if bet is valid
+            return int(bet)
+
+Bets()
