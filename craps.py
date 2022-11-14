@@ -72,8 +72,9 @@ class Bets(Player, App):
         self.pass_bet = 0                                   # current wager on pass line
         self.no_pass_bet = 0                                # current wager on don't pass line
         self.odds_bet = 0                                   # current odds bet
+        self.pass_odds = 0                                  # payout ratio for pass line odds bet
         self.max_odds = 0                                   # maximum allowable odds bet (dollar value)
-        self.payout = 0                                     # winnings from most recent roll
+        self.winnings = 0                                     # winnings from most recent roll
         
         # button configuration
         self.pass_button.config(command=self.pass_line)     # call pass_line method on button click
@@ -91,7 +92,7 @@ class Bets(Player, App):
             userval = self.ingest_bet()
             if userval is not None:
                 self.pass_bet += userval
-
+                self.balance -= userval
                 self.shooter()
 
     def do_not_pass(self):
@@ -99,7 +100,8 @@ class Bets(Player, App):
         if not self.point:
             userval = self.ingest_bet()
             if userval is not None:
-                self.no_pass_bet = userval
+                self.no_pass_bet += userval
+                self.balance -= userval
                 self.shooter()
 
     def odds(self):
@@ -107,104 +109,141 @@ class Bets(Player, App):
         if self.point:
             userval = self.ingest_bet()
             if userval is not None:
-                self.odds_bet = userval
+                self.odds_bet += userval
+                self.balance -= userval
                 self.shooter()
 
-    def shooter(self):
+    def shooter(self) -> None:
         "rolls dice and evaluates payout"
-        self.payout = 0                     # set winnings from this particular roll
+        self.winnings = 0                       # set winnings from current roll
         net_pass = self.pass_bet - self.no_pass_bet
         if self.any_bet():
             val = sum(self.roll())
-            if not self.point:              # if no point is set, in come-out phase
-                if val==7 or val==11:       # on 7 or 11, pass wins, dont pass loses
-                    self.payout = net_pass
-                elif val==2  or val==3:     # on 2 or 3, pass loses, dont pass wins
-                    self.payout = -net_pass
-                elif val==12:               # on 12, pass loses, dont pass ties
-                    self.payout = -self.pass_bet
-                else:                       # on other rolls, set point
-                    self.point = val
+            if not self.point:                  # if no point is set
+                if val==7 or val==11:           # on 7 or 11, pass wins, dont pass loses
+                    self.winnings = net_pass
+                elif val==2  or val==3:         # on 2 or 3, pass loses, dont pass wins
+                    self.winnings = -net_pass
+                elif val==12:                   # on 12, pass loses, dont pass ties
+                    self.winnings = -self.pass_bet
+                else:                           # on other rolls, set point
+                    self.point = val            # set point
+                    self.max_odds = (6 - abs(7-val)) *  max(self.pass_bet, self.no_pass_bet)    # set maximum odds bet in dollars
                 
-                if self.point:
-                    self.max_odds = (6 - abs(7-val)) * max(self.pass_bet, self.no_pass_bet)
-                else:
-                    self.clear_bets()
+                if not self.point:              # if no point was set, update balance with payout
+                    self.payout()
                 self.update_view()
             
-            else:
-                if self.total==7:
-                    self.payout = -net_pass 
-                    self.clear_bets()
-                elif self.total == self.point:
-                    self.payout = net_pass
-                    self.clear_bets()
+            else:                   # if point is set
+                # determine pass line odds bet payout ratios
+                if self.point==4 or self.point==10:
+                    self.pass_odds = 2.
+                elif self.point==5 or self.point==9:
+                    self.pass_odds = 3/2.
+                elif self.point==6 or self.point==8:
+                    self.pass_odds = 6/5.
+
+                # evaluate pass line and odds bet payouts
+                if self.total==7:                   # pass line loses, dont pass wins
+                    if net_pass>0:                  # taking odds (pass) loses
+                        self.winnings = - net_pass - self.odds_bet
+                    else:                           # laying odds (dont pass) wins
+                        self.winnings = - net_pass + self.odds_bet / self.pass_odds
+                    self.payout()
+
+                elif self.total == self.point:      # pass line wins, dont pass loses
+                    if net_pass>0:                  # taking odds (pass) wins
+                        self.winnings = net_pass + self.odds_bet * self.pass_odds
+                    else:                           # laying odds (dont pass) loses
+                        self.winnings = net_pass - self.odds_bet
+                    self.payout()
                 self.update_view() 
     
-    def clear_bets(self):
-        "clear all existing bets"
-        self.balance += self.payout
-        self.point = 0
-        self.pass_bet = 0
-        self.no_pass_bet = 0
-        self.odds_bet = 0
-        self.max_odds = 0
+    def payout(self) -> None:
+        "update balance, reset point, and clear existing bets if needed"
+        self.balance += self.winnings               # add winnings to balance
+        self.point = 0                              # reset point
+        if self.odds_bet != 0 or self.winnings<=0:  # if money was lost/tied or odds bet was placed
+            # return bets to original balance and clear them from the table
+            self.balance += self.pass_bet + self.no_pass_bet + self.odds_bet   # add bets back to bankroll
+            self.pass_bet = 0                       # clear pass bet
+            self.no_pass_bet = 0                    # clear dont pass bet
+            self.odds_bet = 0                       # clear odds bet
+        self.max_odds = 0                           # reset maximum allowable odds bet
+        self.pass_odds = 0                          # reset the odds payout ratio for pass line bet
 
-    def any_bet(self):
+    def any_bet(self) -> bool:
         "Checks if any bet is currently on the table"
         return max(self.pass_bet, self.no_pass_bet, self.odds_bet) != 0
     
-    def update_view(self):
+    def update_view(self) -> None:
         "Updates GUI view and options based on current status"
         self.betvar.set("")
-        on = lambda tf: [("!" if tf else "") + "disabled"]      # translates boolean T/F into enabled/disabled status for widgets
+        on = lambda tf: [("!" if tf else "") + "disabled"]      # translates boolean T/F into enabled/disabled status for tk widgets
         self.pass_button.state(on(not self.point))              # pass line bet only enabled during come-out
         self.no_pass_button.state(on(not self.point))           # dont pass bet only enabled during come-out
-        self.odds_button.state(on(self.any_bet()))              # odds bet only enabled when bet is on the table
+        self.odds_button.state(on(self.point))                  # odds bet only enabled during point phase
+        self.roll_button.state(on(self.any_bet()))              # can only roll w/out betting if bet is already placed
         self.quit_button.state(on(not self.any_bet()))          # quit button only enabled when no bets are on the table
         
-        self.die[0]['image'] = self.die_images[self.each[0] - 1]
-        self.die[1]['image'] = self.die_images[self.each[1] - 1]
-        self.labels['balance'].config(text=f"Balance: ${self.balance:,}")
+        self.die[0]['image'] = self.die_images[self.each[0] - 1]    # update first die with image of roll
+        self.die[1]['image'] = self.die_images[self.each[1] - 1]    # update second die with image of roll  
+
+        if self.winnings > 0:                                       # if last roll won money, display winnings
+            self.labels['win'].config(text=f"You won ${self.winnings:,.2f}!")
+            self.win_anim()                                     # play a celebratory animated graphic upon win
+        elif self.winnings < 0:                                 # if last roll lost money, display losses
+            self.labels['win'].config(text=f"You lost ${-self.winnings:,.2f}!")
+        else:                                                   # if no money was won or lost
+            self.labels['win'].config(text=f"")
+        self.labels['balance'].config(text=f"Balance: ${self.balance:,.2f}")
         total_bet = self.pass_bet + self.no_pass_bet + self.odds_bet
         self.labels['bet'].config(text=f"Bet: ${total_bet:,}")
 
+        # Add label containing current point value
         if self.point:
             self.labels['point'].configure(text=f"Point: {self.point}")
         else:
-            self.labels['point'].configure(text=f"Point: None")
+            self.labels['point'].configure(text="No Point Set")
+
     def on_close(self):
-        if self.any_bet():
+        "Determine if the game can be ended, and if so, display winnings"
+        if self.any_bet():                                                  # if there is an active bet, dont allow quitting
             messagebox.showerror(title="Not so soon", message="You still have bets on the table!")
-        else:
-            if messagebox.askyesno(title="Exit Game",
-            message="Are you sure you want to quit?"):
-                self.destroy()
+        else:                                                               # if no bets are on the table
+            net = self.balance - self.starting_balance                      # net earnings of player
+            status = "won" if net>=0 else "lost"                            # text of overall status of player
+            walk = messagebox.askyesno(title="Exit Game",                   # display winnings and double-check intention to quit
+                    message=f'''Are you sure you want to quit playing?
+                                You {status} ${abs(net):,.2f} in total.''')
+            if walk:                                                        # player chose to quit
+                self.destroy()                                              # close window
     
     def ingest_bet(self):
         "Allows user to input a bet value"
+        errbox = lambda msg: messagebox.showerror(title="Aw Crap!", message=msg)
         bet = remove(self.betvar.get(), "$,_ ")
         if not bet.isnumeric():                                 # check if bet contains non-numeric symbols
             if remove(bet,".").isnumeric():                     # check if bet is number with decimal
-                messagebox.showerror(message="Bet must be whole dollar amount!")
+                errbox("Bet must be whole (integer) dollar amount!")
 
             elif remove(bet,"-").isnumeric():                   # check if bet contains a minus sign
-                messagebox.showerror(message="Bet must be positive!")
+                errbox("Bet must be positive!")
 
             else:                                               # if bet cannot be recognized as a number at all
-                messagebox.showerror(message="Bet must be a number!")
+                errbox("Bet must be a number!")
 
         elif int(bet)<1:                                        # check if bet is zero
-            messagebox.showerror(message="Bet must be greater than zero!")
+            errbox("Bet must be greater than zero!")
 
         elif int(bet)>self.balance:                             # check if bet is greater than player balance
-            messagebox.showerror(message=f'''You don't have enough money for that bet!
-                                            \nYour balance: ${self.balance}
-                                            \nYou tried to bet: ${bet}
-                                            \nWin a few more rounds first...''')
+            errbox(f'''You don't have enough money for that bet!
+                        Your balance: ${self.balance}
+                        You tried to bet: ${bet}
+                        Win a few more rounds first...''')
 
-        elif self.point and int(bet)>self.max_odds:             # check if odds bet is greater than allowed max
-            messagebox.showerror(message=f"Odds bet is limited to ${self.max_odds}!")
+        elif self.point and (int(bet)+self.odds_bet)>self.max_odds:     # check if total odds bet is greater than allowed max
+            errbox(f"Odds bet is limited to ${self.max_odds}!")
 
         else:                                       # if bet is valid, continue
             return int(bet)
