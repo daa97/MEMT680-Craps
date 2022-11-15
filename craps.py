@@ -1,15 +1,5 @@
-from numpy.random import randint
-
+from random import randint
 from interface import *
-
-
-def catch(err_func):
-    def inner_func(err_func, *args, **kwargs):
-        try:
-            err_func(*args, **kwargs)
-        except ValueError:
-            print("Bet must be in dollars!")
-            
 
 
 class Dice:
@@ -21,7 +11,8 @@ class Dice:
         self.each = [1]*count   # value of roll for each die
         self.dist = self.pmf()  # probability distribution of dice roll values
 
-    def chance(self, value):    # probability of rolling a given value
+    def chance(self, value):
+        "probability of rolling a given value"
         return self.dist[value]
 
 
@@ -38,7 +29,7 @@ class Dice:
         pdict = dict()                              # dictionary of probability distribution
         for i in range(len(pnew)):                  # iterate over possible roll sum values
             pdict[i+self.count] = float(pnew[i]) / (self.sides**self.count)     # probability = frequency / total samples
-        return pdict        # returns dictionary containing pairs of (roll total):(probability)
+        return pdict                                # returns dictionary containing pairs of (roll total):(probability)
     
 
     def roll(self):
@@ -74,7 +65,7 @@ class Bets(Player, App):
         self.odds_bet = 0                                   # current odds bet
         self.pass_odds = 0                                  # payout ratio for pass line odds bet
         self.max_odds = 0                                   # maximum allowable odds bet (dollar value)
-        self.winnings = 0                                     # winnings from most recent roll
+        self.winnings = 0                                   # winnings from most recent roll
         
         # Associate buttons with respective functions
         self.pass_button.config(command=self.pass_line)     # call pass_line method on button click
@@ -89,7 +80,7 @@ class Bets(Player, App):
     
     def pass_line(self):
         "allows a pass line bet to be made"
-        if not self.point:
+        if not self.point:                      # check that no point has been set
             userval = self.ingest_bet()         # get bet
             if userval is not None:             # ensure valid bet was made
                 self.pass_bet += userval        # add user defined bet to current bet
@@ -98,7 +89,7 @@ class Bets(Player, App):
 
     def do_not_pass(self):
         "allows a dont pass bet to be made"
-        if not self.point:
+        if not self.point:                      # check that no point has been set
             userval = self.ingest_bet()         # get bet
             if userval is not None:             # ensure valid bet was made
                 self.no_pass_bet += userval     # add user defined bet to current bet
@@ -107,7 +98,7 @@ class Bets(Player, App):
 
     def odds(self):
         "allows an odds bet to be made"
-        if self.point:
+        if self.point:                          # check that point has been set
             userval = self.ingest_bet()         # get bet
             if userval is not None:             # ensure valid bet was made
                 self.odds_bet += userval        # add user defined bet to current bet
@@ -255,4 +246,5 @@ class Bets(Player, App):
         else:                                       # if bet is valid, continue
             return int(bet)
 
-Bets()
+if __name__=="__main__":
+    Bets()
