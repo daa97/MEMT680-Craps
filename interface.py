@@ -18,7 +18,8 @@ class App(tk.Tk):
         self.labels['title'] =  ttk.Label(self.labelbox,text=f"Craps", font="bold 16")
         self.labels['balance'] = ttk.Label(self.labelbox,text=f"Balance: $0")
         self.labels['win'] = ttk.Label(self.labelbox,text=f"")
-        self.labels['bet'] = ttk.Label(self.labelbox,text="Current Bet: $0")
+        self.labels['bet'] = ttk.Label(self.labelbox,text=f"Pass Line Bet: $0")
+        self.labels['odds'] = ttk.Label(self.labelbox,text="")
         self.labels['point'] = ttk.Label(self.labelbox, text="No Point Set")
 
         self.betvar = tk.StringVar(value="")
@@ -30,8 +31,8 @@ class App(tk.Tk):
         self.balloon_images = [tk.PhotoImage(file=f"resources\\f{i+1}.ppm") for i in range(15)]
         self.dice = ttk.Frame(self)
         self.die = [ttk.Label(self.dice, image=self.die_images[0]), ttk.Label(self.dice, image=self.die_images[0])] 
-        self.die[0].grid(row=0, column=0, padx=5, pady=5)
-        self.die[1].grid(row=0, column=1, padx=5, pady=5)
+        self.die[0].grid(row=0, column=0, padx=5, pady=2)
+        self.die[1].grid(row=0, column=1, padx=5, pady=2)
         # create buttons
         self.odds_button = ttk.Button(self, text="Odds Bet")        # button to make odds bet
         self.pass_button = ttk.Button(self, text="Pass")            # button to make pass bet
@@ -41,11 +42,12 @@ class App(tk.Tk):
         
         # ******** Place Widgets ************* 
         # place labels at top   
-        self.labels['title'].grid(row=0,column=0, pady=5)           # place title 'Craps'
+        self.labels['title'].grid(row=0,column=0, pady=3)           # place title 'Craps'
         self.labels["balance"].grid(row=1, column=0)                # place bankroll label
         self.labels['win'].grid(row=2,column=0)                     # place winnings label
-        self.labels["bet"].grid(row=3, column=0)                    # place bet label
-        self.labels["point"].grid(row=4, column=0)                  # place point label
+        self.labels["bet"].grid(row=3, column=0)                    # place pass bet label
+        self.labels["odds"].grid(row=4,column=0)                    # place odds bet label
+        self.labels["point"].grid(row=5, column=0)                  # place point label
 
         # place 
         self.left.grid(row=0,column=0, rowspan=9, sticky="n")       # place left margin graphics

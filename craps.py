@@ -17,57 +17,57 @@ class Dice:
     def __init__(self, count=2, sides=6):
         self.count = count      # number of dice which are rolled
         self.sides = sides      # number of sides per die
-        self.total = None
-        self.each = [1]*count
-        self.dist = self.pmf()
+        self.total = count      # total value of dice roll
+        self.each = [1]*count   # value of roll for each die
+        self.dist = self.pmf()  # probability distribution of dice roll values
 
-    def chance(self, value):
+    def chance(self, value):    # probability of rolling a given value
         return self.dist[value]
 
 
     def pmf(self):
         "returns a probability mass function for dice results"
-        p0 = [1]*self.sides                 # frequency of each dice roll for single die
-        pnew = p0                           # frequency of possible summed rolls for first die only
-        for die in range(1,self.count):     # iterate through each die which is rolled
-            pi = pnew                       # frequency for summed rolls of all previous dice
-            pnew = [0]*(self.sides*(die+1)-die) # initializes frequency for combination of all dice up to current
-            for roll in range(len(pi)):     # roll
-                for nextroll in range(len(p0)):
-                    pnew[roll+nextroll] += pi[roll]*p0[nextroll]
-        pdict = dict()
-        for i in range(len(pnew)):
-            pdict[i+self.count] = float(pnew[i]) / (self.sides**self.count)
+        p0 = [1]*self.sides                         # frequency of each dice roll for single die
+        pnew = p0                                   # frequency of possible summed rolls for first die only
+        for die in range(1,self.count):             # iterate through each die which is rolled
+            pi = pnew                               # frequency for summed rolls of all previous dice
+            pnew = [0]*(self.sides*(die+1)-die)     # initializes frequency for combination of all dice up to current
+            for roll in range(len(pi)):             # for each possible summed value of previous rolls
+                for nextroll in range(len(p0)):     # for each possible current roll
+                    pnew[roll+nextroll] += pi[roll]*p0[nextroll]    # add expected frequency of dice roll combination
+        pdict = dict()                              # dictionary of probability distribution
+        for i in range(len(pnew)):                  # iterate over possible roll sum values
+            pdict[i+self.count] = float(pnew[i]) / (self.sides**self.count)     # probability = frequency / total samples
         return pdict        # returns dictionary containing pairs of (roll total):(probability)
     
 
     def roll(self):
         "Rolls dice and returns the total value of the roll"
-        self.each = [randint(1,7) for i in range(self.count)]
-        self.total = sum(self.each)
-        return self.each
+        self.each = [randint(1,7) for i in range(self.count)]       # list of dice values
+        self.total = sum(self.each)                                 # total value of roll
+        return self.each                                            # return both die values individually
 
 class Table(Dice):
     "Represents a craps table at which games take place"
     def __init__(self):
-        super().__init__()
-        self.point = False
+        super().__init__()                                          # instantiate associated dice
+        self.point = 0                                              # start off with no point set
 
 class Player(Table): 
     "Represents a single player at the table"
     def __init__(self):
-        super().__init__()
-        self.name = EntryBox("Please enter your name:").userval()
-        balance_box = EntryBox("Please enter the balance you want to gamble:", check_func=lambda s: remove(s,"$,0_ ").isnumeric())
-        self.balance = int(remove(balance_box.userval(),"$,"))
-        self.starting_balance = self.balance
+        super().__init__()                                                      # instantiate associated table
+        self.name = EntryBox("Please enter your name:").userval()               # get player name from input
+        balance_box = EntryBox("Please enter the balance you want to gamble:",   
+                        check_func=lambda s: remove(s,"$,0_ ").isnumeric())     # get user bankroll, ensure it is a whole nonzero dollar amount
+        self.balance = int(remove(balance_box.userval(),"$,"))                  # convert bankroll string to an integer
+        self.starting_balance = self.balance                                    # set starting balance to calculate overall winnings at end
 
 class Bets(Player, App):
     "Represents bets belonging to a particular player"
     def __init__(self):
-        #super().__init__()
-        Player.__init__(self)                               # instantiate player
-        App.__init__(self)                                  # instantiate app
+        Player.__init__(self)                               # instantiate associated player
+        App.__init__(self)                                  # instantiate associated app
         self.title(f"{self.name} plays craps")              # add window title
         self.pass_bet = 0                                   # current wager on pass line
         self.no_pass_bet = 0                                # current wager on don't pass line
@@ -76,49 +76,50 @@ class Bets(Player, App):
         self.max_odds = 0                                   # maximum allowable odds bet (dollar value)
         self.winnings = 0                                     # winnings from most recent roll
         
-        # button configuration
+        # Associate buttons with respective functions
         self.pass_button.config(command=self.pass_line)     # call pass_line method on button click
         self.no_pass_button.config(command=self.do_not_pass)# call do_not_pass method on button click
         self.odds_button.config(command=self.odds)          # call odds method on button click
         self.roll_button.config(command=self.shooter)       # call shooter method on button click
         self.quit_button.config(command=self.on_close)      # call on_close method on button click
         self.protocol("WM_DELETE_WINDOW", self.on_close)    # call on_close method when user attempts to "X" out of window
-        self.update_view()
-        self.mainloop()
+
+        self.update_view()                                  # set label values correctly
+        self.mainloop()                                     # start window
     
     def pass_line(self):
         "allows a pass line bet to be made"
         if not self.point:
-            userval = self.ingest_bet()
-            if userval is not None:
-                self.pass_bet += userval
-                self.balance -= userval
-                self.shooter()
+            userval = self.ingest_bet()         # get bet
+            if userval is not None:             # ensure valid bet was made
+                self.pass_bet += userval        # add user defined bet to current bet
+                self.balance -= userval         # subtract user defined bet from balance
+                self.shooter()                  # roll dice and evaluate
 
     def do_not_pass(self):
         "allows a dont pass bet to be made"
         if not self.point:
-            userval = self.ingest_bet()
-            if userval is not None:
-                self.no_pass_bet += userval
-                self.balance -= userval
-                self.shooter()
+            userval = self.ingest_bet()         # get bet
+            if userval is not None:             # ensure valid bet was made
+                self.no_pass_bet += userval     # add user defined bet to current bet
+                self.balance -= userval         # subtract user defined bet from balance
+                self.shooter()                  # roll dice and evaluate
 
     def odds(self):
         "allows an odds bet to be made"
         if self.point:
-            userval = self.ingest_bet()
-            if userval is not None:
-                self.odds_bet += userval
-                self.balance -= userval
-                self.shooter()
+            userval = self.ingest_bet()         # get bet
+            if userval is not None:             # ensure valid bet was made
+                self.odds_bet += userval        # add user defined bet to current bet
+                self.balance -= userval         # subtract user defined bet from balance
+                self.shooter()                  # roll dice and evaluate
 
     def shooter(self) -> None:
         "rolls dice and evaluates payout"
         self.winnings = 0                       # set winnings from current roll
-        net_pass = self.pass_bet - self.no_pass_bet
-        if self.any_bet():
-            val = sum(self.roll())
+        net_pass = self.pass_bet - self.no_pass_bet     # net bet on pass line
+        if self.any_bet():                      # if a bet has been placed
+            val = sum(self.roll())              # get current dice roll
             if not self.point:                  # if no point is set
                 if val==7 or val==11:           # on 7 or 11, pass wins, dont pass loses
                     self.winnings = net_pass
@@ -135,7 +136,7 @@ class Bets(Player, App):
                 self.update_view()
             
             else:                   # if point is set
-                # determine pass line odds bet payout ratios
+                # determine pass line odds bet payout ratios from point
                 if self.point==4 or self.point==10:
                     self.pass_odds = 2.
                 elif self.point==5 or self.point==9:
@@ -197,16 +198,22 @@ class Bets(Player, App):
         else:                                                   # if no money was won or lost
             self.labels['win'].config(text=f"")
         self.labels['balance'].config(text=f"Balance: ${self.balance:,.2f}")
-        total_bet = self.pass_bet + self.no_pass_bet + self.odds_bet
-        self.labels['bet'].config(text=f"Bet: ${total_bet:,}")
 
-        # Add label containing current point value
+        # Add pass line bet value
+        if self.no_pass_bet != 0:
+            self.labels['bet'].config(text=f"Do Not Pass Bet: ${self.no_pass_bet:,}")
+        else:
+            self.labels['bet'].config(text=f"Pass Line Bet: ${self.pass_bet:,}")
+
+        # Add labels containing current point, odds bet, and maximum possible odds bet
         if self.point:
+            self.labels['odds'].configure(text=f"Odds Bet: ${self.odds_bet:,} (Max ${self.max_odds:,})")
             self.labels['point'].configure(text=f"Point: {self.point}")
         else:
+            self.labels['odds'].configure(text="")
             self.labels['point'].configure(text="No Point Set")
 
-    def on_close(self):
+    def on_close(self) -> None:
         "Determine if the game can be ended, and if so, display winnings"
         if self.any_bet():                                                  # if there is an active bet, dont allow quitting
             messagebox.showerror(title="Not so soon", message="You still have bets on the table!")
